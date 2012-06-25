@@ -49,7 +49,8 @@ void svgtiny_find_gradient(const char *id, struct svgtiny_parse_state *state)
 	//gradient = svgtiny_find_element_by_id( d->documentElement(), id);
     
     std::string s(id);
-    gradient = d->getElementById(s);
+    //gradient = d->getElementById(s);
+    gradient = d->getElementById( s, "id");
     
 	//fprintf(stderr, "gradient %p\n", (void *) gradient);
 	if (!gradient) {
@@ -96,9 +97,13 @@ svgtiny_code svgtiny_parse_linear_gradient(Poco::XML::Element *linear,
     //for( attr = linear->FirstAttribute(); attr; attr = attr->Next() ) {
     
     
-    Poco::XML::NodeIterator it(linear, Poco::XML::NodeFilter::SHOW_ELEMENT | Poco::XML::NodeFilter::SHOW_TEXT);
-    Poco::XML::Node* pNode = it.nextNode();
-    while (pNode)
+    //Poco::XML::NodeIterator it(linear, Poco::XML::NodeFilter::SHOW_ELEMENT | Poco::XML::NodeFilter::SHOW_TEXT);
+    //Poco::XML::Node* pNode = it.nextNode();
+    
+    Poco::XML::NamedNodeMap *map = linear->attributes();
+    Poco::XML::Node *node;
+    i = 0;
+    while (i < map->length())
     {
     
 		//const char *name = (const char *) attr->name;
@@ -107,10 +112,9 @@ svgtiny_code svgtiny_parse_linear_gradient(Poco::XML::Element *linear,
         //const char *name = (const char *) attr->Name();
 		//const char *content = (const char *) attr->Value();
         
-        const char *name = (const char *) pNode->localName().c_str();
-		const char *content = (const char *) pNode->getNodeValue().c_str();
+        node = map->item(i);
         
-		if (strcmp(name, "x1") == 0)
+		/*if (strcmp(name, "x1") == 0)
 			state->gradient_x1 = content;
 		else if (strcmp(name, "y1") == 0)
 			state->gradient_y1 = content;
@@ -128,8 +132,40 @@ svgtiny_code svgtiny_parse_linear_gradient(Poco::XML::Element *linear,
 				return svgtiny_OUT_OF_MEMORY;
 			svgtiny_parse_transform(s, &a, &b, &c, &d, &e, &f);
 			free(s);
-			fprintf(stderr, "transform %g %g %g %g %g %g\n",
-					a, b, c, d, e, f);
+            std::cout << "transform " << a << " " << b << " " << c << " " << d << " " << e << " " << f << std::endl;
+			state->gradient_transform.a = a;
+			state->gradient_transform.b = b;
+			state->gradient_transform.c = c;
+			state->gradient_transform.d = d;
+			state->gradient_transform.e = e;
+			state->gradient_transform.f = f;
+		}*/
+        
+        if (node->localName().compare("x1") == 0)
+			state->gradient_x1 = node->getNodeValue().c_str();
+		else if (node->localName().compare("y1") == 0)
+			state->gradient_y1 = node->getNodeValue().c_str(); //state->gradient_y1 = content;
+		else if (node->localName().compare("x2") == 0)
+			state->gradient_x2 = node->getNodeValue().c_str();
+		else if (node->localName().compare("y2") == 0)
+			state->gradient_y2 = node->getNodeValue().c_str();
+		else if (node->localName().compare("gradientUnits") == 0)
+			state->gradient_user_space_on_use = node->getNodeValue().compare("userSpaceOnUse") == 0;
+		else if (node->localName().compare("gradientTransform") == 0) {
+			float a = 1, b = 0, c = 0, d = 1, e = 0, f = 0;
+			
+            // we'll just assume this won't happen (dangerous, I know)
+            char *s = strdup(node->getNodeValue().c_str());
+            
+			//if (!s)
+			//	return svgtiny_OUT_OF_MEMORY;
+            
+			svgtiny_parse_transform(s, &a, &b, &c, &d, &e, &f);
+			
+            free(s);
+            
+            
+            std::cout << "transform " << a << " " << b << " " << c << " " << d << " " << e << " " << f << std::endl;
 			state->gradient_transform.a = a;
 			state->gradient_transform.b = b;
 			state->gradient_transform.c = c;
@@ -138,18 +174,21 @@ svgtiny_code svgtiny_parse_linear_gradient(Poco::XML::Element *linear,
 			state->gradient_transform.f = f;
 		}
         
-        
-        pNode = it.nextNode();
+        i++;
     }
 
 	//for (stop = linear->children; stop; stop = stop->next) {
     //for( stop = (Poco::XML::Element*) linear->FirstChild( false ); stop; stop = (Poco::XML::Element*) stop->NextSibling( false ) ) {
     
-    Poco::XML::NodeIterator it2(linear, Poco::XML::NodeFilter::SHOW_ELEMENT | Poco::XML::NodeFilter::SHOW_TEXT);
-    pNode = it2.nextNode();
-    while (pNode)
+    Poco::XML::Element *pNode;
+    for( pNode = (Poco::XML::Element*) linear->firstChild(); pNode; pNode = (Poco::XML::Element*) pNode->nextSibling() )
     {
-    
+        
+		svgtiny_code code = svgtiny_OK;
+        
+        //pNode = (Poco::XML::Element *) cnl->item(i);
+        
+        std::cout << pNode->localName() << std::endl;
     
 		float offset = -1;
 		svgtiny_colour color = svgtiny_TRANSPARENT;
@@ -205,7 +244,7 @@ svgtiny_code svgtiny_parse_linear_gradient(Poco::XML::Element *linear,
 			i++;
 		}
         
-        pNode = it.nextNode();
+        //pNode = it.nextNode();
 
 		if (i == svgtiny_MAX_STOPS)
 			break;
